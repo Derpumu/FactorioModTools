@@ -11,7 +11,7 @@ def do_release(mod_path):
     version = get_version(mod_path)
     archive = create_mod_zip(mod_path, version)
 
-    success = test(mod_path)
+    success = test([mod_path])
     if not success:
         return 1
 
