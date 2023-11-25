@@ -5,24 +5,24 @@ import shutil
 import sys
 
 
-def release(mod_path):
-    assert os.path.isdir(mod_path)
+def do_release(mod_path):
+    assert os.path.isdir(mod_path), f'not a directory: {mod_path}'
 
     version = get_version(mod_path)
     archive = create_mod_zip(mod_path, version)
 
-    success = run_tests()
+    success = test(mod_path)
     if not success:
-        return
+        return 1
 
-    upload_mod(archive)
+    return upload_mod(archive)
     # TODO: increment version patch number in mod dev dir info.json
     # TODO: update changelog.txt
 
 
 def run_tests():
     print("Run tests.")
-    result = input("Proceed (Yes/No)?")
+    result = input("Proceed (Yes/No)? ")
 
     if result != "Yes":
         print("Aborting. END.")
@@ -35,7 +35,9 @@ def init_upload(mod_name):
     form_data = {'mod': mod_name}
     server = requests.post(url, data=form_data, headers=api_header())
     output = json.loads(server.text)
-    return output['upload_url']
+    url_key = 'upload_url'
+    assert url_key in output, str(output)
+    return output[url_key]
 
 
 def api_header():
@@ -46,11 +48,26 @@ def api_header():
 
 def upload_mod(archive):
     _, filename = os.path.split(archive)
-    mod_name = filename.split('_')[0]
+    mod_name = get_mod_name(archive)
     upload_url = init_upload(mod_name)
-    files = {'file': (filename, open(archive,'rb'), 'application/x-zip-compressed')}
+    if input(f"Upload {filename} (Yes/No)? ") == "Yes":
+        server = perform_upload(archive, filename, upload_url)
+        print(server.text)
+        return 0
+    else:
+        print("Upload canceled.")
+        return 1
+
+
+def perform_upload(archive, filename, upload_url):
+    files = {'file': (filename, open(archive, 'rb'), 'application/x-zip-compressed')}
     server = requests.post(upload_url, files=files, headers=api_header())
-    print(server.text)
+    return server
+
+
+def get_mod_name(path):
+    _, filename = os.path.split(path)
+    return filename.split('_')[0]
 
 
 def get_version(path):
@@ -68,11 +85,34 @@ def create_mod_zip(path, version):
     shutil.rmtree(new_path)
     return archive_path
 
+
 def main(argv):
-    assert (len(argv) == 2)
-    mod_path = argv[1]
-    release(mod_path)
+    argv.pop(0)  # remove script name
+
+    command = argv.pop(0)
+    if command == "release":
+        return release(argv)
+    elif command == "test":
+        return test(argv)
+    else:
+        print(f"unknown command {command}")
+        return 2
+
+
+def test(argv):
+    assert (len(argv) == 1)
+    mod_path = argv[0]
+    print(f'Testing {mod_path}')
+    return run_tests()
+
+
+def release(argv):
+    assert (len(argv) == 1)
+    mod_path = argv[0]
+    print(f'Release for {mod_path}')
+    do_release(mod_path)
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    rc = main(sys.argv)
+    exit(rc)
