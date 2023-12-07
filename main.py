@@ -79,7 +79,7 @@ def get_version(path):
 
 def create_mod_zip(path, version):
     new_path = path.replace('0.0.0', version)
-    shutil.copytree(path, new_path, ignore=shutil.ignore_patterns('.git', '.idea'))
+    shutil.copytree(path, new_path, ignore=shutil.ignore_patterns('.git', '.idea', '.test'))
     parent_dir, mod_dir = os.path.split(new_path)
     archive_path = shutil.make_archive(new_path, 'zip', root_dir=parent_dir, base_dir=mod_dir)
     shutil.rmtree(new_path)
