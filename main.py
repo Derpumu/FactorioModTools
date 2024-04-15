@@ -10,13 +10,15 @@ def do_release(mod_path):
 
     version = get_version(mod_path)
     archive = create_mod_zip(mod_path, version)
+    set_fix_mod_version(mod_path, version)
+    increase_info_version(mod_path, version)
 
     success = test([mod_path])
     if not success:
+        set_info_version(mod_path, version)
         return 1
 
     return upload_mod(archive)
-    # TODO: increment version patch number in mod dev dir info.json
     # TODO: update changelog.txt
 
 
@@ -70,11 +72,48 @@ def get_mod_name(path):
     return filename.split('_')[0]
 
 
+def info_file(path):
+    return os.path.join(path, "info.json")
+
+
+def read_info_file(path):
+    with open(info_file(path)) as file:
+        return json.load(file)
+
+
 def get_version(path):
-    info_file = os.path.join(path, "info.json")
-    with open(info_file) as file:
-        data = json.load(file)
-        return data["version"]
+    data = read_info_file(path)
+    return data["version"]
+
+
+def set_info_version(path, version):
+    data = read_info_file(path)
+    data["version"] = version
+
+    with open(info_file(path), 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
+
+
+def increase_info_version(path, version):
+    version_parts = [int(part) for part in version.split('.')]
+    version_parts[2] = version_parts[2]+1
+    new_version = ".".join([str(i) for i in version_parts])
+    set_info_version(path, new_version)
+
+
+def set_fix_mod_version(path, version):
+    parent_dir, mod_dir = os.path.split(path)
+    mod_list_file = os.path.join(parent_dir, "mod-list.json")
+    mod_list = None
+    with open(mod_list_file) as file:
+        mod_list = json.load(file)
+    mod_name = get_mod_name(path)
+    for entry in mod_list["mods"]:
+        if entry["name"] == mod_name:
+            entry["version"] = version
+            break
+    with open(mod_list_file, 'w', encoding='utf-8') as file:
+        json.dump(mod_list, file, ensure_ascii=False, indent=2)
 
 
 def create_mod_zip(path, version):
