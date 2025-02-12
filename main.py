@@ -2,6 +2,7 @@ import json
 import os
 import requests
 import shutil
+import subprocess
 import sys
 
 
@@ -10,7 +11,7 @@ def do_release(mod_path):
 
     version = get_version(mod_path)
     archive = create_mod_zip(mod_path, version)
-    set_fix_mod_version(mod_path, version)
+    set_mod_list_version(mod_path, version)
     increase_info_version(mod_path, version)
 
     success = test([mod_path])
@@ -18,6 +19,7 @@ def do_release(mod_path):
         set_info_version(mod_path, version)
         return 1
 
+    tag_git(mod_path, version)
     return upload_mod(archive)
     # TODO: update changelog.txt
 
@@ -101,7 +103,7 @@ def increase_info_version(path, version):
     set_info_version(path, new_version)
 
 
-def set_fix_mod_version(path, version):
+def set_mod_list_version(path, version):
     parent_dir, mod_dir = os.path.split(path)
     mod_list_file = os.path.join(parent_dir, "mod-list.json")
     mod_list = None
@@ -123,6 +125,12 @@ def create_mod_zip(path, version):
     archive_path = shutil.make_archive(new_path, 'zip', root_dir=parent_dir, base_dir=mod_dir)
     shutil.rmtree(new_path)
     return archive_path
+
+
+def tag_git(path, version):
+    git = shutil.which("git")
+    subprocess.call([git, "tag", version], cwd=path)
+    subprocess.call([git, "push", "--tags"], cwd=path)
 
 
 def main(argv):
