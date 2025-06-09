@@ -1,5 +1,6 @@
 import json
 import os
+import pathlib
 from typing import NewType, Dict, Mapping
 
 import requests
@@ -21,7 +22,7 @@ def do_release(mod_path: Path) -> int:
     set_mod_list_version(mod_path, version)
     increase_info_version(mod_path, version)
 
-    success = test([mod_path])
+    success = run_tests(mod_path)
     if not success:
         set_info_version(mod_path, version)
         return 1
@@ -33,7 +34,9 @@ def do_release(mod_path: Path) -> int:
 
 
 def run_tests(mod_path: Path) -> bool:
-    print("running automated tests")
+    if testing.has_test_dir(pathlib.Path(mod_path)):
+        print("running automated tests")
+        return testing.test(pathlib.Path(mod_path))
 
     print("Run manual tests.")
     result: str = input("Proceed (Yes/No)? ")
