@@ -20,13 +20,12 @@ def do_release(mod_path: Path) -> int:
     version: Version = get_version(mod_path)
     archive: Path = create_mod_zip(mod_path, version)
     set_mod_list_version(mod_path, version)
-    increase_info_version(mod_path, version)
 
     success = run_tests(mod_path)
     if not success:
-        set_info_version(mod_path, version)
         return 1
 
+    increase_info_version(mod_path, version)
     tag_git(mod_path, version)
     set_mod_list_version(mod_path, None)
     return upload_mod(archive)
@@ -120,21 +119,24 @@ def increase_info_version(path, version):
 def set_mod_list_version(path, version):
     parent_dir, mod_dir = os.path.split(path)
     mod_list_file = os.path.join(parent_dir, "mod-list.json")
-    mod_list = None
-    with open(mod_list_file) as file:
-        mod_list = json.load(file)
-    mod_name = get_mod_name(path)
-    for entry in mod_list["mods"]:
-        if entry["name"] == mod_name:
-            entry["version"] = version
-            break
-    with open(mod_list_file, 'w', encoding='utf-8') as file:
-        json.dump(mod_list, file, ensure_ascii=False, indent=2)
+    try:
+        mod_list = None
+        with open(mod_list_file) as file:
+            mod_list = json.load(file)
+        mod_name = get_mod_name(path)
+        for entry in mod_list["mods"]:
+            if entry["name"] == mod_name:
+                entry["version"] = version
+                break
+        with open(mod_list_file, 'w', encoding='utf-8') as file:
+            json.dump(mod_list, file, ensure_ascii=False, indent=2)
+    except FileNotFoundError:
+        pass
 
 
 def create_mod_zip(path: Path, version: Version) -> Path:
     new_path: str = path.replace('0.0.0', version)
-    shutil.copytree(path, new_path, ignore=shutil.ignore_patterns('.git*', '.idea', '.test'))
+    shutil.copytree(path, new_path, ignore=shutil.ignore_patterns('.*'))
     parent_dir, mod_dir = os.path.split(new_path)
     archive_path = shutil.make_archive(new_path, 'zip', root_dir=parent_dir, base_dir=mod_dir)
     shutil.rmtree(new_path)
